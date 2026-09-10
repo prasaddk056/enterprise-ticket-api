@@ -77,7 +77,7 @@ enterprise-ticket-api/
 ### 1. Clone the repository
 
 ```bash
-git clone <your-github-repository-url>
+git clone https://github.com/prasaddk056/enterprise-ticket-api.git
 cd enterprise-ticket-api
 ```
 
