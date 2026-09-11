@@ -1,127 +1,148 @@
 # Enterprise Ticket Lifecycle Management API
 
-A role-based ticket management REST API built with Django REST Framework.
-
-The application simulates an enterprise support workflow where clients create tickets, administrators assign tickets to support agents, and agents manage tickets through a controlled ticket lifecycle.
+A backend REST API for managing enterprise support tickets with role-based access control, JWT authentication, controlled ticket lifecycle transitions, filtering, search, pagination, automated testing, and Docker support.
 
 ## Tech Stack
 
-* Python
-* Django
-* Django REST Framework
-* JWT Authentication
-* SQLite
-* django-filter
-* Git
+- Python
+- Django
+- Django REST Framework
+- Simple JWT
+- SQLite
+- django-filter
+- Docker
+- Git
 
 ## Key Features
 
-* JWT-based authentication
-* Role-based access control
-* Client ticket creation
-* Admin ticket assignment
-* Controlled ticket lifecycle
-* Role-based ticket visibility
-* Ticket update and deletion rules
-* Filtering and search
-* Pagination
-* Automated API and business-logic tests
-* Django Admin interface for managing users and tickets
+- JWT-based authentication
+- Role-based access control
+- Three application roles:
+  - ADMIN
+  - SUPPORT_AGENT
+  - CLIENT
+- Ticket creation and management
+- Admin-controlled ticket assignment
+- Controlled ticket status transitions
+- Role-based ticket visibility
+- Ticket update restrictions
+- Ticket deletion rules
+- Filtering by status, category, and priority
+- Search by ticket ID, issue, and category
+- Pagination
+- Automated API and business-logic tests
+- Dockerized application
 
 ## Ticket Lifecycle
 
+Tickets follow a controlled lifecycle:
+
 ```text
-OPEN → ASSIGNED → IN_PROGRESS → RESOLVED → CLOSED
+OPEN -> ASSIGNED -> IN_PROGRESS -> RESOLVED -> CLOSED
 ```
 
-Status transitions are controlled by the service layer. Invalid transitions are rejected.
+Direct or invalid status transitions are rejected by the service layer.
+
+For example:
+
+```text
+OPEN -> CLOSED
+OPEN -> RESOLVED
+ASSIGNED -> RESOLVED
+CLOSED -> IN_PROGRESS
+```
+
+These transitions are rejected because they do not follow the defined lifecycle.
 
 ## User Roles
 
-| Role          | Responsibilities                             |
-| ------------- | -------------------------------------------- |
-| ADMIN         | Assign tickets and manage all tickets        |
-| SUPPORT_AGENT | View and work on tickets assigned to them    |
-| CLIENT        | Create and manage their own eligible tickets |
+| Role | Responsibilities |
+|------|------------------|
+| ADMIN | View all tickets, assign tickets, update ticket status, update tickets, delete tickets |
+| SUPPORT_AGENT | View assigned tickets, update assigned tickets, update status of assigned tickets |
+| CLIENT | Create tickets, view own tickets, update own open tickets, delete own open tickets |
 
 ## Project Structure
 
 ```text
 enterprise-ticket-api/
 ├── config/
+│   ├── __init__.py
+│   ├── asgi.py
 │   ├── settings.py
 │   ├── urls.py
-│   └── ...
+│   └── wsgi.py
 ├── tickets/
 │   ├── migrations/
 │   ├── tests/
+│   │   ├── __init__.py
+│   │   ├── test_api_endpoints.py
 │   │   ├── test_auth.py
-│   │   ├── test_tickets.py
-│   │   ├── test_permissions.py
 │   │   ├── test_lifecycle.py
-│   │   └── test_api_endpoints.py
+│   │   ├── test_permissions.py
+│   │   └── test_tickets.py
 │   ├── admin.py
+│   ├── apps.py
 │   ├── models.py
 │   ├── permissions.py
 │   ├── serializers.py
 │   ├── services.py
 │   ├── urls.py
 │   └── views.py
+├── .dockerignore
+├── .gitignore
+├── Dockerfile
 ├── manage.py
-├── requirements.txt
-└── README.md
+├── README.md
+└── requirements.txt
 ```
 
 ## Installation
 
-### 1. Clone the repository
+### Clone the repository
 
 ```bash
 git clone https://github.com/prasaddk056/enterprise-ticket-api.git
 cd enterprise-ticket-api
 ```
 
-### 2. Create a virtual environment
+### Create and activate virtual environment
+
+#### Windows
 
 ```bash
 python -m venv venv
-```
-
-### 3. Activate the virtual environment
-
-Windows:
-
-```bash
 venv\Scripts\activate
 ```
 
-Linux/macOS:
+#### Linux/macOS
 
 ```bash
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-### 4. Install dependencies
+### Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 5. Apply database migrations
+### Apply migrations
 
 ```bash
 python manage.py migrate
 ```
 
-### 6. Create an admin user
+### Create an admin user
 
 ```bash
 python manage.py createsuperuser
 ```
 
-Follow the prompts to create the administrator account.
+Follow the prompts to create the Django admin account.
 
-### 7. Start the development server
+### Start the development server
 
 ```bash
 python manage.py runserver
@@ -133,10 +154,44 @@ The API will be available at:
 http://127.0.0.1:8000/
 ```
 
-The Django Admin panel is available at:
+Django Admin:
 
 ```text
 http://127.0.0.1:8000/admin/
+```
+
+## Run with Docker
+
+Make sure Docker Desktop is running.
+
+### Build the Docker image
+
+```bash
+docker build -t enterprise-ticket-api .
+```
+
+### Run the container
+
+```bash
+docker run --rm -p 8000:8000 enterprise-ticket-api
+```
+
+The API will be available at:
+
+```text
+http://localhost:8000/api/
+```
+
+For example:
+
+```text
+http://localhost:8000/api/tickets/
+```
+
+To stop the container, press:
+
+```text
+Ctrl+C
 ```
 
 ## Authentication
@@ -145,7 +200,7 @@ The API uses JWT authentication.
 
 ### Login
 
-```text
+```http
 POST /api/auth/login/
 ```
 
@@ -158,24 +213,30 @@ Example request:
 }
 ```
 
-The response contains:
+Successful login returns:
 
-* Access token
-* Refresh token
-* User ID
-* Username
-* Email
-* Application role
-
-For protected endpoints, include the access token:
-
-```text
-Authorization: Bearer <access_token>
+```json
+{
+    "refresh": "refresh-token",
+    "access": "access-token",
+    "user": {
+        "id": 2,
+        "username": "client1",
+        "email": "client1@example.com",
+        "role": "CLIENT"
+    }
+}
 ```
 
-### Refresh Token
+Use the access token in subsequent requests:
 
-```text
+```http
+Authorization: Bearer <access-token>
+```
+
+### Refresh token
+
+```http
 POST /api/auth/refresh/
 ```
 
@@ -183,39 +244,32 @@ Example request:
 
 ```json
 {
-    "refresh": "<refresh_token>"
+    "refresh": "<refresh-token>"
 }
 ```
 
 ## API Endpoints
 
-### Authentication
-
-| Method | Endpoint             | Access | Description                          |
-| ------ | -------------------- | ------ | ------------------------------------ |
-| POST   | `/api/auth/login/`   | Public | Obtain JWT access and refresh tokens |
-| POST   | `/api/auth/refresh/` | Public | Refresh an access token              |
-
-### Tickets
-
-| Method | Endpoint                    | Access                  | Description                              |
-| ------ | --------------------------- | ----------------------- | ---------------------------------------- |
-| GET    | `/api/tickets/`             | Authenticated           | List tickets visible to the current user |
-| POST   | `/api/tickets/create/`      | CLIENT                  | Create a new ticket                      |
-| POST   | `/api/tickets/<id>/assign/` | ADMIN                   | Assign a ticket to a support agent       |
-| PATCH  | `/api/tickets/<id>/status/` | ADMIN / Assigned Agent  | Update ticket status                     |
-| PATCH  | `/api/tickets/<id>/update/` | Authorized User         | Update editable ticket fields            |
-| DELETE | `/api/tickets/<id>/`        | ADMIN / Eligible CLIENT | Delete a ticket                          |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/login/` | Obtain JWT access and refresh tokens |
+| POST | `/api/auth/refresh/` | Refresh access token |
+| GET | `/api/tickets/` | List tickets based on user role |
+| POST | `/api/tickets/create/` | Create a new ticket |
+| POST | `/api/tickets/<id>/assign/` | Assign ticket to support agent |
+| PATCH | `/api/tickets/<id>/status/` | Update ticket status |
+| PATCH | `/api/tickets/<id>/update/` | Update editable ticket fields |
+| DELETE | `/api/tickets/<id>/` | Delete a ticket based on role and status |
 
 ## Ticket Creation
 
-Clients can create tickets using:
+Only authenticated clients can create tickets.
 
-```text
+```http
 POST /api/tickets/create/
 ```
 
-Example request:
+Example:
 
 ```json
 {
@@ -223,11 +277,11 @@ Example request:
     "issue": "Database connection failure",
     "category": "database",
     "is_priority": true,
-    "comment": "Application is unable to connect to the database."
+    "comment": "Application is unable to connect to DB."
 }
 ```
 
-The ticket client is automatically assigned from the authenticated user.
+The authenticated user is automatically assigned as the ticket client.
 
 New tickets start with:
 
@@ -235,24 +289,23 @@ New tickets start with:
 OPEN
 ```
 
-The client cannot directly set:
+The client cannot directly set protected fields such as:
 
-* Status
-* Client
-* Assigned agent
-* Created timestamp
-* Updated timestamp
-* Resolved timestamp
+- status
+- client
+- assigned_to
+- timestamps
+- resolved_at
 
 ## Ticket Assignment
 
 Only administrators can assign tickets.
 
-```text
+```http
 POST /api/tickets/<id>/assign/
 ```
 
-Example request:
+Example:
 
 ```json
 {
@@ -262,19 +315,19 @@ Example request:
 
 The selected user must have the `SUPPORT_AGENT` role.
 
-A successful assignment changes the ticket lifecycle from:
+A successfully assigned ticket changes from:
 
 ```text
-OPEN → ASSIGNED
+OPEN -> ASSIGNED
 ```
+
+Tickets that are not in the `OPEN` state cannot be assigned.
 
 ## Ticket Status Updates
 
-Administrators can update any ticket status.
+Status changes are handled through a dedicated endpoint:
 
-Support agents can update the status only for tickets assigned to them.
-
-```text
+```http
 PATCH /api/tickets/<id>/status/
 ```
 
@@ -286,33 +339,28 @@ Example:
 }
 ```
 
-Only valid lifecycle transitions are accepted.
-
-For example:
+Valid transitions are:
 
 ```text
-ASSIGNED → IN_PROGRESS
-IN_PROGRESS → RESOLVED
-RESOLVED → CLOSED
+OPEN -> ASSIGNED
+ASSIGNED -> IN_PROGRESS
+IN_PROGRESS -> RESOLVED
+RESOLVED -> CLOSED
 ```
 
-Invalid transitions such as:
+Admins can update the status of any ticket.
 
-```text
-OPEN → CLOSED
-OPEN → RESOLVED
-CLOSED → IN_PROGRESS
-```
+Support agents can update the status only for tickets assigned to them.
 
-are rejected.
+Clients cannot update ticket status.
 
-When a ticket becomes `RESOLVED`, the `resolved_at` timestamp is recorded.
+When a ticket moves to `RESOLVED`, the `resolved_at` timestamp is automatically recorded.
 
 ## Ticket Updates
 
-Authorized users can update editable ticket information:
+Editable ticket information can be updated through:
 
-```text
+```http
 PATCH /api/tickets/<id>/update/
 ```
 
@@ -322,98 +370,153 @@ Example:
 {
     "issue": "Updated database connection failure",
     "category": "database",
-    "is_priority": true,
+    "is_priority": false,
     "comment": "Additional troubleshooting information."
 }
 ```
 
-Protected fields such as status, client, assignment, and timestamps cannot be modified through this endpoint.
+The following fields cannot be modified through this endpoint:
+
+- status
+- client
+- assigned_to
+- created_at
+- updated_at
+- resolved_at
+
+Status changes must use the dedicated status endpoint.
 
 ## Ticket Visibility
 
-Ticket visibility is role-based.
+Ticket visibility is restricted by role.
 
 ### ADMIN
 
-Can view all tickets.
+Administrators can view all tickets.
 
 ### SUPPORT_AGENT
 
-Can view tickets assigned to them.
+Support agents can view only tickets assigned to them.
 
 ### CLIENT
 
-Can view tickets created by them.
+Clients can view only tickets they created.
 
-This filtering is applied at the queryset level before pagination, filtering, and search.
+These restrictions are applied at the queryset level before filtering and searching.
 
 ## Ticket Deletion
 
+Deletion rules are enforced by the service layer.
+
+### ADMIN
+
+Administrators can delete any ticket.
+
+### CLIENT
+
+Clients can delete only their own tickets while the ticket is still:
+
 ```text
-DELETE /api/tickets/<id>/
+OPEN
 ```
 
-Deletion rules:
+### SUPPORT_AGENT
 
-* ADMIN can delete tickets.
-* CLIENT can delete their own tickets only while they are `OPEN`.
-* SUPPORT_AGENT cannot delete tickets.
+Support agents cannot delete tickets.
 
 ## Filtering
 
-Tickets can be filtered using query parameters.
+Ticket lists support filtering by:
 
-Filter by status:
+- status
+- category
+- priority
 
-```text
+Examples:
+
+```http
 GET /api/tickets/?status=OPEN
 ```
 
-Filter by category:
-
-```text
+```http
 GET /api/tickets/?category=database
 ```
 
-Filter by priority:
-
-```text
+```http
 GET /api/tickets/?is_priority=true
+```
+
+Filters can also be combined:
+
+```http
+GET /api/tickets/?status=OPEN&category=database
 ```
 
 ## Search
 
-Tickets can be searched using:
+Search is supported using the `search` query parameter.
 
-```text
-GET /api/tickets/?search=database
-```
+Search fields:
 
-Search supports:
-
-* Ticket ID
-* Issue description
-* Category
-
-## Pagination
-
-The API returns 10 tickets per page by default.
+- ticket ID
+- issue
+- category
 
 Example:
 
+```http
+GET /api/tickets/?search=database
+```
+
+Search can be combined with filtering and pagination:
+
+```http
+GET /api/tickets/?search=database&status=OPEN&page=2
+```
+
+Search and filtering are applied within the tickets visible to the authenticated user's role.
+
+## Pagination
+
+Ticket listing uses Django REST Framework pagination.
+
+The default page size is:
+
 ```text
+10 tickets per page
+```
+
+Example:
+
+```http
 GET /api/tickets/?page=2
 ```
 
-Filtering, searching, and pagination can be combined:
+A paginated response contains:
 
-```text
-GET /api/tickets/?status=OPEN&search=database&page=2
+```json
+{
+    "count": 25,
+    "next": "...",
+    "previous": null,
+    "results": []
+}
 ```
 
 ## Testing
 
-The project includes automated tests covering authentication, ticket creation, permissions, lifecycle rules, and API behavior.
+The project includes automated tests covering:
+
+- JWT authentication
+- Ticket creation
+- Authentication requirements
+- Role-based permissions
+- Ticket visibility
+- Ticket assignment
+- Status updates
+- Invalid lifecycle transitions
+- Ticket update restrictions
+- API endpoint behavior
 
 Run the complete test suite with:
 
@@ -421,46 +524,37 @@ Run the complete test suite with:
 python manage.py test
 ```
 
-The test suite covers:
-
-* JWT authentication
-* Authenticated ticket creation
-* Unauthenticated access restrictions
-* Role-based permissions
-* Ticket assignment
-* Ticket status authorization
-* Valid ticket lifecycle transitions
-* Invalid lifecycle transitions
-* `resolved_at` timestamp handling
-* Role-based ticket visibility
-* API endpoint behavior
-* Pagination behavior
-
 ## Development Notes
 
 The project separates responsibilities across different layers:
 
-* **Models** — Define users, roles, tickets, and ticket statuses.
-* **Serializers** — Validate and transform API input/output.
-* **Permissions** — Handle role-based and object-level authorization.
-* **Services** — Contain ticket lifecycle and business rules.
-* **Views** — Handle HTTP requests and API responses.
-* **Tests** — Verify authentication, authorization, business logic, and API behavior.
+```text
+Models
+  ↓
+Serializers
+  ↓
+Views
+  ↓
+Permissions
+  ↓
+Services
+```
 
-This separation keeps business rules independent from the API layer and makes them easier to test.
+Business rules such as ticket assignment, lifecycle transitions, and deletion restrictions are handled in the service layer rather than being implemented entirely inside API views.
+
+Role-based queryset filtering is applied at the API level to prevent users from accessing tickets outside their permitted scope.
 
 ## Future Improvements
 
-Potential improvements include:
+Potential future enhancements include:
 
-* PostgreSQL database support
-* Docker containerization
-* API documentation with OpenAPI/Swagger
-* Automated CI/CD pipeline
-* Structured application logging
-* Email or notification integration
-* Production deployment configuration
+- PostgreSQL database
+- OpenAPI / Swagger documentation
+- CI/CD pipeline
+- Structured application logging
+- Email or notification integration
+- Production deployment configuration
 
 ## License
 
-This project is intended as a portfolio and learning project.
+This project is a portfolio and learning project created to demonstrate backend development, REST API design, authentication, authorization, business logic, testing, and containerization.
