@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
-from .models import Role,Ticket,TicketStatus
+from .models import Role,Ticket,TicketStatus,TicketActivity
 from django.contrib.auth import get_user_model
 
 class LoginSerializer(TokenObtainPairSerializer):
@@ -139,3 +139,31 @@ class TicketUpdateSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+class TicketActivitySerializer(serializers.ModelSerializer):
+    """
+    Serializer for displaying the audit history of a ticket.
+    """
+
+    performed_by = serializers.CharField(
+        source="performed_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = TicketActivity
+        fields = [
+            "id",
+            "ticket",
+            "performed_by",
+            "action",
+            "description",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "performed_by",
+            "action",
+            "description",
+            "created_at",
+        ]

@@ -99,3 +99,32 @@ class Ticket(models.Model):
 
     def __str__(self):
         return f"{self.ticket_id} - {self.status}"
+
+class TicketActivity(models.Model):
+    """
+    Stores an audit trail of important actions performed on a ticket.
+    """
+
+    ticket = models.ForeignKey(
+    Ticket,
+    on_delete=models.SET_NULL,
+    null=True,
+    blank=True,
+    related_name="activities",
+    )
+    
+    performed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="ticket_activities",
+    )
+    action = models.CharField(max_length=50)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.ticket.ticket_id} - {self.action}"

@@ -10,6 +10,7 @@ from .views import (
     TicketStatusUpdateView,
     TicketDeleteView,
     TicketUpdateView,
+    TicketActivityListView,
 )
 
 
@@ -21,6 +22,8 @@ urlpatterns = [
     path("tickets/create/", TicketCreateView.as_view(), name="ticket_create"),
     path("tickets/<int:pk>/assign/",TicketAssignView.as_view(),name="ticket_assign",),
     path( "tickets/<int:pk>/status/",TicketStatusUpdateView.as_view(),name="ticket_status_update",),
-    path("tickets/<int:pk>/",TicketDeleteView.as_view(),name="ticket_delete",),
     path("tickets/<int:pk>/update/",TicketUpdateView.as_view(),name="ticket_update",),
+    path("tickets/<int:pk>/activities/",TicketActivityListView.as_view(),name="ticket_activities",),
+    path("tickets/<int:pk>/",TicketDeleteView.as_view(),name="ticket_delete",),
+
 ]

@@ -1,6 +1,6 @@
 from django.core.exceptions import ValidationError
 
-from .models import Role, Ticket, TicketStatus, User
+from .models import Role, Ticket, TicketStatus, User, TicketActivity
 
 
 def assign_ticket(ticket: Ticket, support_agent: User) -> Ticket:
@@ -84,9 +84,17 @@ def delete_ticket(ticket: Ticket, user: User) -> None:
     """
     Deletes a ticket only when the user is authorized and
     the ticket is still eligible for deletion.
-    """
 
+    An audit record is created before deletion so that the
+    deletion event remains available after the ticket is removed.
+    """
     if user.role == Role.ADMIN:
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=user,
+            action="DELETED",
+            description=f"Ticket {ticket.ticket_id} deleted",
+        )
         ticket.delete()
         return
 
@@ -101,9 +109,31 @@ def delete_ticket(ticket: Ticket, user: User) -> None:
                 "Only open tickets can be deleted."
             )
 
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=user,
+            action="DELETED",
+            description=f"Ticket {ticket.ticket_id} deleted",
+        )
         ticket.delete()
         return
 
     raise ValidationError(
         "You do not have permission to delete tickets."
+    )
+
+def create_ticket_activity(
+    ticket: Ticket,
+    performed_by: User,
+    action: str,
+    description: str,
+) -> TicketActivity:
+    """
+    Creates an audit record for an important ticket action.
+    """
+    return TicketActivity.objects.create(
+        ticket=ticket,
+        performed_by=performed_by,
+        action=action,
+        description=description,
     )

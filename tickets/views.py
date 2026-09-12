@@ -20,12 +20,14 @@ from .serializers import (
     TicketSerializer,
     TicketUpdateSerializer,
     UpdateTicketStatusSerializer,
+    TicketActivitySerializer,
 )
 
 from .services import (
     assign_ticket,
     update_ticket_status,
     delete_ticket,
+    create_ticket_activity
 )
 
 
@@ -43,12 +45,18 @@ class TicketCreateView(generics.CreateAPIView):
     The client is taken from the authenticated JWT user rather than
     accepting a client ID from the request body.
     """
-
     serializer_class = TicketSerializer
     permission_classes = [IsAuthenticated, IsClient]
 
     def perform_create(self, serializer):
-        serializer.save(client=self.request.user)
+        ticket = serializer.save(client=self.request.user)
+
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=self.request.user,
+            action="CREATED",
+            description="Ticket created",
+        )
 
 
 class TicketListView(generics.ListAPIView):
@@ -102,10 +110,12 @@ class TicketAssignView(generics.GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        support_agent = serializer.validated_data["assigned_to"]
+
         try:
             assign_ticket(
                 ticket=ticket,
-                support_agent=serializer.validated_data["assigned_to"],
+                support_agent=support_agent,
             )
         except ValidationError as exc:
             return Response(
@@ -113,11 +123,18 @@ class TicketAssignView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=request.user,
+            action="ASSIGNED",
+            description=f"Ticket assigned to {support_agent.username}",
+        )
+
         return Response(
             TicketSerializer(ticket).data,
             status=status.HTTP_200_OK,
         )
-
+    
 class TicketStatusUpdateView(generics.GenericAPIView):
     """
     Allows authorized users to move a ticket through its
@@ -132,13 +149,17 @@ class TicketStatusUpdateView(generics.GenericAPIView):
 
         self.check_object_permissions(request, ticket)
 
+        old_status = ticket.status
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        new_status = serializer.validated_data["status"]
 
         try:
             update_ticket_status(
                 ticket=ticket,
-                new_status=serializer.validated_data["status"],
+                new_status=new_status,
             )
         except ValidationError as exc:
             return Response(
@@ -146,16 +167,24 @@ class TicketStatusUpdateView(generics.GenericAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=request.user,
+            action="STATUS_CHANGED",
+            description=(
+                f"Status changed from {old_status} to {new_status}"
+            ),
+        )
+
         return Response(
             TicketSerializer(ticket).data,
             status=status.HTTP_200_OK,
         )
-
 class TicketDeleteView(generics.GenericAPIView):
     """
     Deletes a ticket according to the application's
     deletion policy.
-    """
+    """    
 
     permission_classes = [IsAuthenticated]
 
@@ -173,7 +202,9 @@ class TicketDeleteView(generics.GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )    
 
 class TicketUpdateView(generics.GenericAPIView):
     """
@@ -196,7 +227,48 @@ class TicketUpdateView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
+        updated_fields = ", ".join(serializer.validated_data.keys())
+
+        create_ticket_activity(
+            ticket=ticket,
+            performed_by=request.user,
+            action="UPDATED",
+            description=f"Updated fields: {updated_fields}",
+        )
+
         return Response(
             TicketSerializer(ticket).data,
             status=status.HTTP_200_OK,
         )
+
+class TicketActivityListView(generics.ListAPIView):
+    """
+    Returns the audit history of a ticket.
+
+    Users can only view activities for tickets they are
+    authorized to see.
+    """
+
+    serializer_class = TicketActivitySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        ticket = get_object_or_404(
+            Ticket,
+            pk=self.kwargs["pk"],
+        )
+
+        user = self.request.user
+
+        if user.role == Role.ADMIN:
+            return ticket.activities.all()
+
+        if user.role == Role.SUPPORT_AGENT:
+            if ticket.assigned_to == user:
+                return ticket.activities.all()
+
+        if user.role == Role.CLIENT:
+            if ticket.client == user:
+                return ticket.activities.all()
+
+        return ticket.activities.none()
