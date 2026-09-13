@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "django_filters",
+    "drf_spectacular",
     "tickets",
 ]
 
@@ -126,11 +127,12 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 10,
     "DEFAULT_FILTER_BACKENDS": [
-    "django_filters.rest_framework.DjangoFilterBackend",
-    "rest_framework.filters.SearchFilter",
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
     ],
 }
 
@@ -143,3 +145,14 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = "tickets.User"
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Enterprise Ticket Lifecycle Management API",
+    "DESCRIPTION": (
+        "REST API for managing enterprise support tickets, "
+        "including authentication, role-based access, ticket "
+        "assignment, lifecycle management, and audit activity."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+}

@@ -1,6 +1,6 @@
 # Enterprise Ticket Lifecycle Management API
 
-A backend REST API for managing enterprise support tickets with role-based access control, JWT authentication, controlled ticket lifecycle transitions, filtering, search, pagination, automated testing, and Docker support.
+A backend REST API for managing enterprise support tickets with role-based access control, JWT authentication, controlled ticket lifecycle transitions, filtering, search, pagination, audit activity tracking, automated testing, OpenAPI documentation, and Docker support.
 
 ## Tech Stack
 
@@ -10,6 +10,7 @@ A backend REST API for managing enterprise support tickets with role-based acces
 - Simple JWT
 - SQLite
 - django-filter
+- drf-spectacular
 - Docker
 - Git
 
@@ -27,10 +28,12 @@ A backend REST API for managing enterprise support tickets with role-based acces
 - Role-based ticket visibility
 - Ticket update restrictions
 - Ticket deletion rules
+- Ticket activity audit trail
 - Filtering by status, category, and priority
 - Search by ticket ID, issue, and category
 - Pagination
 - Automated API and business-logic tests
+- OpenAPI / Swagger API documentation
 - Dockerized application
 
 ## Ticket Lifecycle
@@ -56,11 +59,11 @@ These transitions are rejected because they do not follow the defined lifecycle.
 
 ## User Roles
 
-| Role | Responsibilities |
-|------|------------------|
-| ADMIN | View all tickets, assign tickets, update ticket status, update tickets, delete tickets |
-| SUPPORT_AGENT | View assigned tickets, update assigned tickets, update status of assigned tickets |
-| CLIENT | Create tickets, view own tickets, update own open tickets, delete own open tickets |
+| Role          | Responsibilities                                                                       |
+| ------------- | -------------------------------------------------------------------------------------- |
+| ADMIN         | View all tickets, assign tickets, update ticket status, update tickets, delete tickets |
+| SUPPORT_AGENT | View assigned tickets, update assigned tickets, update status of assigned tickets      |
+| CLIENT        | Create tickets, view own tickets, update own open tickets, delete own open tickets     |
 
 ## Project Structure
 
@@ -194,6 +197,32 @@ To stop the container, press:
 Ctrl+C
 ```
 
+## API Documentation
+
+The API provides interactive OpenAPI documentation using `drf-spectacular`.
+
+### Swagger UI
+
+```text
+http://127.0.0.1:8000/api/docs/
+```
+
+Swagger UI allows authenticated users to explore and test the available API endpoints.
+
+### ReDoc
+
+```text
+http://127.0.0.1:8000/api/redoc/
+```
+
+### OpenAPI Schema
+
+```text
+http://127.0.0.1:8000/api/schema/
+```
+
+The OpenAPI schema is generated from the implemented API views, serializers, authentication, and endpoints.
+
 ## Authentication
 
 The API uses JWT authentication.
@@ -250,16 +279,17 @@ Example request:
 
 ## API Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/auth/login/` | Obtain JWT access and refresh tokens |
-| POST | `/api/auth/refresh/` | Refresh access token |
-| GET | `/api/tickets/` | List tickets based on user role |
-| POST | `/api/tickets/create/` | Create a new ticket |
-| POST | `/api/tickets/<id>/assign/` | Assign ticket to support agent |
-| PATCH | `/api/tickets/<id>/status/` | Update ticket status |
-| PATCH | `/api/tickets/<id>/update/` | Update editable ticket fields |
-| DELETE | `/api/tickets/<id>/` | Delete a ticket based on role and status |
+| Method | Endpoint                        | Description                              |
+| ------ | ------------------------------- | ---------------------------------------- |
+| POST   | `/api/auth/login/`              | Obtain JWT access and refresh tokens     |
+| POST   | `/api/auth/refresh/`            | Refresh access token                     |
+| GET    | `/api/tickets/`                 | List tickets based on user role          |
+| POST   | `/api/tickets/create/`          | Create a new ticket                      |
+| POST   | `/api/tickets/<id>/assign/`     | Assign ticket to support agent           |
+| PATCH  | `/api/tickets/<id>/status/`     | Update ticket status                     |
+| PATCH  | `/api/tickets/<id>/update/`     | Update editable ticket fields            |
+| GET    | `/api/tickets/<id>/activities/` | View ticket activity history             |
+| DELETE | `/api/tickets/<id>/`            | Delete a ticket based on role and status |
 
 ## Ticket Creation
 
@@ -291,11 +321,11 @@ OPEN
 
 The client cannot directly set protected fields such as:
 
-- status
-- client
-- assigned_to
-- timestamps
-- resolved_at
+* status
+* client
+* assigned_to
+* timestamps
+* resolved_at
 
 ## Ticket Assignment
 
@@ -377,14 +407,40 @@ Example:
 
 The following fields cannot be modified through this endpoint:
 
-- status
-- client
-- assigned_to
-- created_at
-- updated_at
-- resolved_at
+* status
+* client
+* assigned_to
+* created_at
+* updated_at
+* resolved_at
 
 Status changes must use the dedicated status endpoint.
+
+## Ticket Activity Audit Trail
+
+The API maintains an activity history for ticket operations.
+
+Tracked activities include:
+
+* Ticket creation
+* Ticket assignment
+* Status changes
+* Ticket updates
+* Ticket deletion
+
+Activity records include:
+
+* Ticket
+* User who performed the action
+* Action
+* Description
+* Timestamp
+
+Authenticated users can access activity history only for tickets within their permitted role-based scope.
+
+```http
+GET /api/tickets/<id>/activities/
+```
 
 ## Ticket Visibility
 
@@ -428,9 +484,9 @@ Support agents cannot delete tickets.
 
 Ticket lists support filtering by:
 
-- status
-- category
-- priority
+* status
+* category
+* priority
 
 Examples:
 
@@ -458,9 +514,9 @@ Search is supported using the `search` query parameter.
 
 Search fields:
 
-- ticket ID
-- issue
-- category
+* ticket ID
+* issue
+* category
 
 Example:
 
@@ -507,16 +563,16 @@ A paginated response contains:
 
 The project includes automated tests covering:
 
-- JWT authentication
-- Ticket creation
-- Authentication requirements
-- Role-based permissions
-- Ticket visibility
-- Ticket assignment
-- Status updates
-- Invalid lifecycle transitions
-- Ticket update restrictions
-- API endpoint behavior
+* JWT authentication
+* Ticket creation
+* Authentication requirements
+* Role-based permissions
+* Ticket visibility
+* Ticket assignment
+* Status updates
+* Invalid lifecycle transitions
+* Ticket update restrictions
+* API endpoint behavior
 
 Run the complete test suite with:
 
@@ -548,12 +604,11 @@ Role-based queryset filtering is applied at the API level to prevent users from 
 
 Potential future enhancements include:
 
-- PostgreSQL database
-- OpenAPI / Swagger documentation
-- CI/CD pipeline
-- Structured application logging
-- Email or notification integration
-- Production deployment configuration
+* PostgreSQL database
+* CI/CD pipeline
+* Structured application logging
+* Email or notification integration
+* Production deployment configuration
 
 ## License
 
